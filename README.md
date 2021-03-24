@@ -49,8 +49,8 @@ To run the project locally:
 
 OR
 
-We have deployed the App using Heroku. To visit, click the link below!
-- [GitHub Garden](https://githubgarden.herokuapp.com/visualizations/CJSpohn)
+We have deployed the App using Heroku. To visit, click one of the link below!
+- [Heroku](https://githubgarden.herokuapp.com/visualizations/CJSpohn)
 
 
 ### Testing

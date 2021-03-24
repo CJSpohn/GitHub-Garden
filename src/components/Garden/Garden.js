@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as d3 from "d3";
 import './Garden.css';
 
-const Garden = (props) => {
+const Garden = ({ data, setClickedRepo, animate, forwardedRef, textPathColor }) => {
 
-  const repositories = props.data;
+  const repositories = data;
+  const repositoryLives = repositories.map(repo => parseInt(repo.lifespan));
 
   const gardenWidth = 110 * repositories.length;
-  const view = `0 0 ${200 * repositories.length} 800`
+  const view = `0 100 ${200 * repositories.length} 700`
 
   const drawGarden = () => {
     const colorsByLanguage = {
@@ -20,7 +21,7 @@ const Garden = (props) => {
       "Swift": '#00FF00',
       "TypeScript": '#7FFFD4',
       "C#": '#D2B48C',
-      "PHP": '#000080',
+      "PHP": '#6495ed',
       "C++": '#800000',
       "C": '#228B22',
       "Shell": '#2F4F4F',
@@ -47,21 +48,34 @@ const Garden = (props) => {
       .attr('stroke-width', '3px')
       .attr('fill', 'none')
 
-    const maxLifespan = d3.max(repositories, d => d.lifespan)
-    const minLifespan = d3.min(repositories, d => d.lifespan)
+    const maxLifespan = d3.max(repositoryLives)
+    const minLifespan = d3.min(repositoryLives)
+    const mean = d3.mean(repositoryLives)
+    const deviation = d3.deviation(repositoryLives)
+    const repoAgeRange = repositoryLives.filter(age => {
+      return age < (mean + 1.5 * deviation) && age > (mean - 1.5 * deviation);
+    })
 
     const yStemScale = d3.scaleQuantize()
-      .domain([minLifespan, maxLifespan])
-      .range([550, 500, 450, 400, 350, 300, 250, 200])
+      .domain(d3.extent(repoAgeRange))
+      .range([550, 525, 500, 475, 450, 425, 400, 375, 350, 325, 300, 275, 250])
+
+    // const yStemScale = d3.scaleThreshold()
+    //   .domain([0.01 * maxLifespan, 0.1 * maxLifespan, 0.2 * maxLifespan, 0.4 * maxLifespan, 0.6 * maxLifespan, 0.8 * maxLifespan])
+    //   .range([500, 450, 400, 350, 300, 250, 200])
+
+    // const yStemScale = d3.scaleQuantile()
+    //   .domain(repositoryLives)
+    //   .range([550, 500, 450, 350, 250])
 
     const rootBox = flowerBed.selectAll('.root-box')
       .data(repositories).enter().append('svg')
       .attr('class', '.root-box')
-      .attr('height', '200')
-      .attr('width', '200')
-      .attr('viewBox','-150 -150 300 300')
-      .attr('x', (d, i) => i * 200)
-      .attr('y', 500)
+      .attr('height', '400')
+      .attr('width', '300')
+      .attr('viewBox','-150 0 300 450')
+      .attr('x', (d, i) => i * 200 - 50)
+      .attr('y', 600)
 
     const root = rootBox.selectAll('.root')
       .data(d => d.branches.map(branch => {
@@ -77,10 +91,10 @@ const Garden = (props) => {
       .attr('stroke', 'green')
       .attr('id', (d,i) => `${d.name + i}`)
       .attr('d', () => {
-        const arrayOfLengths = [110, 130, 150, 170, 180, 190, 210, 250];
-        const arrayOfCurves = [-20, -5, 5, 10, 15, 20, 25];
+        const arrayOfLengths = [65, 70, 90, 95, 100, 110, 130, 135];
+        const arrayOfCurves = [-15, -5, 0, 5, 6, 7, 10];
         const index = (array) => [Math.floor(Math.random() * array.length)];
-        return `M0,0 C-10,40 ${arrayOfCurves[index(arrayOfCurves)]},100 0,${arrayOfLengths[index(arrayOfLengths)]}`;
+        return `M0,0 C-10,30 ${arrayOfCurves[index(arrayOfCurves)]},60 0,${arrayOfLengths[index(arrayOfLengths)]}`;
       })
       .attr('transform', (d,i) => `rotate(${260 + (i+1) * d.rotationFactor})`)
 
@@ -95,25 +109,29 @@ const Garden = (props) => {
       .attr('stroke', 'green')
       .attr('fill', 'none')
 
-    flowerBed.selectAll('.repoName')
-      .data(repositories).enter()
-      .append('text')
-      .append('textPath')
-      .attr('xlink:href', (d, i) => `#myStem${i}`)
-      .text(d => d.name)
-      .attr('fill', 'white')
-      .attr('font-size', '1.5rem')
+    if (animate) {
+      flowerBed.selectAll('.repoName')
+        .data(repositories).enter()
+        .append('text')
+        .append('textPath')
+        .attr('xlink:href', (d, i) => `#myStem${i}`)
+        .text(d => d.name)
+        .attr('fill', 'white')
+        .attr('font-size', '1.5rem')
+        .attr('font-family', 'monospace')
+        .attr('fill', textPathColor)
 
-    const animate = () => {
-      flowerBed.selectAll('.stem')
-        .transition().duration(2000)
-        .attr('d', d => `M0,600 C -20 ${yStemScale(d.lifespan)}, 20 ${yStemScale(d.lifespan)}, 0 ${yStemScale(d.lifespan) - 20}`)
-          .attr('stroke', 'green')
-        .transition().duration(2000)
-        .attr('d', d => `M0,600 C 80 ${yStemScale(d.lifespan)}, -20 ${yStemScale(d.lifespan)}, 0 ${yStemScale(d.lifespan) - 20}`)
-        .on("end", animate)
+      const animation = () => {
+        flowerBed.selectAll('.stem')
+          .transition().duration(2000)
+          .attr('d', d => `M0,600 C -20 ${yStemScale(d.lifespan)}, 20 ${yStemScale(d.lifespan)}, 0 ${yStemScale(d.lifespan) - 20}`)
+            .attr('stroke', 'green')
+          .transition().duration(2000)
+          .attr('d', d => `M0,600 C 80 ${yStemScale(d.lifespan)}, -20 ${yStemScale(d.lifespan)}, 0 ${yStemScale(d.lifespan) - 20}`)
+          .on("end", animation)
+      }
+        animation();
     }
-    animate();
 
     const linesOfCode = repositories.map(repo => repo.languages[repo.languages.length - 1]);
     const flowerSizeScale = d3.scaleQuantize()
@@ -131,9 +149,6 @@ const Garden = (props) => {
 
     const flowerPositionBox = flowerBed.selectAll('.flower-box')
       .data(repositories).enter()
-      .append('a')
-      .attr('xlink:href', d => d.link)
-      .attr('target', '_blank')
       .append('svg')
       .attr('class', '.flower-box')
       .attr('height', '300')
@@ -141,6 +156,7 @@ const Garden = (props) => {
       .attr('viewBox','-150 -150 300 300')
       .attr('x', (d, i) => i * 200 - 50)
       .attr('y', d => yStemScale(d.lifespan) - 175)
+      .on('click', (e, d) => setClickedRepo(d))
 
     const petalLayer = flowerPositionBox.selectAll('.petal-layer')
       .data((d) => [
@@ -171,23 +187,22 @@ const Garden = (props) => {
     const petal = petalLayer.selectAll('.petal')
       .data(d => [d,d,d])
       .enter().append('path')
-      .attr('class', 'petal')
+      .attr('class', 'petal clicker')
       .attr('fill', d => d.color)
       .attr('d', d => d.path)
       .attr('transform', (d,i) => `rotate(${d.petalRotationStart + i * 120 || 0})scale(${d.scale})`)
 
-    flowerBed.selectAll('circle')
+    const flowerCenter = flowerBed.selectAll('circle')
       .data(repositories).enter()
-      .append('a')
-      .attr('xlink:href', d => d.link)
-      .attr('target', '_blank')
       .append('circle')
+      .attr('class', 'center clicker')
       .attr('r', d => 15 * flowerCenterScale(d.languages[d.languages.length - 1]))
       .attr('cx', (d, i) => 100 + i * 200)
       .attr('cy', d => yStemScale(d.lifespan) - 25)
       .attr('stroke-width', 1)
       .attr('stroke', '#0000FF')
       .attr('fill', '#0000FF')
+      .on('click', (e, d) => setClickedRepo(d))
 
   }
 
@@ -195,8 +210,13 @@ const Garden = (props) => {
     drawGarden()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    drawGarden()
+  }, [textPathColor]) // eslint-disable-line react-hooks/exhaustive-deps
+
+
   return (
-    <svg className='flowerbed' viewBox={view} width={gardenWidth}></svg>
+    <svg ref={forwardedRef} className='flowerbed' viewBox={view} width={gardenWidth}></svg>
   )
 }
 
